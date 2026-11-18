@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎰 大乐透随机选号</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+.container { max-width: 800px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+h1 { text-align: center; color: #333; margin-bottom: 10px; font-size: 24px; }
+.subtitle { text-align: center; color: #999; margin-bottom: 25px; font-size: 13px; }
+.form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 150px; }
+label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; font-size: 14px; }
+select, input { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: border-color .3s; }
+select:focus, input:focus { border-color: #667eea; outline: none; }
+button { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin: 20px 0; transition: transform .2s; }
+button:hover { transform: translateY(-2px); }
+button:active { transform: translateY(0); }
+.results { margin-top: 20px; }
+.result-item { background: #f8f9ff; border-radius: 10px; padding: 15px; margin-bottom: 12px; border-left: 4px solid #667eea; }
+.result-header { font-weight: bold; color: #667eea; margin-bottom: 8px; font-size: 14px; }
+.numbers { font-size: 18px; margin-bottom: 5px; }
+.front-nums { color: #333; }
+.back-nums { color: #e74c3c; margin-left: 10px; }
+.stats { font-size: 12px; color: #888; }
+.hot { color: #e74c3c; }
+.cold { color: #3498db; }
+.disclaimer { margin-top: 20px; padding: 12px; background: #fff3cd; border-radius: 8px; font-size: 12px; color: #856404; line-height: 1.6; }
+@media (max-width: 600px) { .container { padding: 20px; } h1 { font-size: 20px; } }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🎰 大乐透随机选号小工具</h1>
+<p class="subtitle">前区 01-35 选5 ｜ 后区 01-12 选2 ｜ 内置近50期开奖数据</p>
+
+<div class="form-row">
+  <div class="form-group">
+    <label>📊 统计期数</label>
+    <select id="periods">
+      <option value="20">近20期</option>
+      <option value="30" selected>近30期</option>
+      <option value="50">近50期</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>🎲 生成注数</label>
+    <select id="count">
+      <option value="5">5注</option>
+      <option value="10" selected>10注</option>
+      <option value="20">20注</option>
+    </select>
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label>🍀 前区幸运号（空格分隔，如: 1 7 23）</label>
+    <input id="luckyFront" placeholder="留空则随机">
+  </div>
+  <div class="form-group">
+    <label>🍀 后区幸运号（空格分隔，如: 2 6）</label>
+    <input id="luckyBack" placeholder="留空则随机">
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label>⚙️ 选号方式</label>
+    <select id="mode">
+      <option value="weighted">冷热加权（推荐）</option>
+      <option value="random">纯随机</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>🔥 热号权重（加权模式）</label>
+    <select id="hotWeight">
+      <option value="1.5">1.5倍</option>
+      <option value="2.0" selected>2.0倍</option>
+      <option value="3.0">3.0倍</option>
+    </select>
+  </div>
+</div>
+
+<button onclick="generate()">🎯 生成号码</button>
+
+<div class="results" id="results"></div>
+
+<div class="disclaimer">
+  ⚠️ <strong>理性购彩提醒：</strong>大乐透每期摇奖完全独立，历史频率不改变下期概率。一等奖概率约 1/2142万。本工具仅为娱乐选号参考，不构成任何中奖保证。请量力而行，小额定投。
+</div>
+</div>
+
+<script>
+// ===== 内置开奖数据（近50期 26081-26130）=====
+const historyData = [
+  {q:['01','07','11','27','29'],h:['02','06']},
+  {q:['02','12','14','17','33'],h:['07','08']},
+  {q:['03','13','20','25','34'],h:['09','12']},
+  {q:['05','06','17','18','27'],h:['03','12']},
+  {q:['05','11','17','25','34'],h:['04','06']},
+  {q:['12','13','23','25','29'],h:['07','10']},
+  {q:['12','14','18','22','27'],h:['01','09']},
+  {q:['13','18','19','20','28'],h:['09','11']},
+  {q:['02','14','21','22','24'],h:['02','12']},
+  {q:['06','08','19','24','25'],h:['01','08']},
+  {q:['01','06','10','15','32'],h:['03','04']},
+  {q:['03','06','20','24','32'],h:['04','07']},
+  {q:['02','09','21','26','32'],h:['06','12']},
+  {q:['04','13','19','29','31'],h:['02','12']},
+  {q:['09','18','22','25','35'],h:['01','10']},
+  {q:['12','20','32','33','35'],h:['06','07']},
+  {q:['08','12','15','29','30'],h:['09','12']},
+  {q:['02','04','06','10','11'],h:['01','10']},
+  {q:['01','03','05','10','22'],h:['03','09']},
+  {q:['10','11','17','26','29'],h:['01','03']},
+  {q:['09','10','14','31','32'],h:['05','11']},
+  {q:['03','05','14','18','20'],h:['07','09']},
+  {q:['01','09','19','22','24'],h:['02','07']},
+  {q:['04','07','13','26','33'],h:['04','10']},
+  {q:['06','10','12','14','30'],h:['01','07']},
+  {q:['02','15','22','26','30'],h:['02','07']},
+  {q:['01','12','16','20','28'],h:['05','11']},
+  {q:['07','10','11','12','33'],h:['02','05']},
+  {q:['04','05','15','22','31'],h:['03','06']},
+  {q:['05','06','14','21','24'],h:['01','07']},
+  {q:['03','04','24','26','35'],h:['07','08']},
+  {q:['02','10','19','26','28'],h:['04','05']},
+  {q:['06','07','18','20','22'],h:['03','04']},
+  {q:['01','17','21','23','32'],h:['02','06']},
+  {q:['09','11','13','23','31'],h:['05','08']},
+  {q:['02','03','07','09','33'],h:['01','11']},
+  {q:['06','22','25','28','32'],h:['04','09']},
+  {q:['01','04','08','21','23'],h:['05','06']},
+  {q:['05','11','16','21','30'],h:['09','10']},
+  {q:['03','07','21','22','34'],h:['04','08']},
+  {q:['09','15','19','21','23'],h:['06','10']},
+  {q:['12','14','20','28','31'],h:['02','09']},
+  {q:['02','05','08','17','35'],h:['05','07']},
+  {q:['01','05','14','20','25'],h:['03','07']},
+  {q:['04','08','16','27','30'],h:['08','11']},
+  {q:['07','12','18','27','34'],h:['01','02']},
+  {q:['06','16','18','25','32'],h:['01','09']},
+  {q:['02','08','15','17','26'],h:['01','10']},
+  {q:['04','06','09','10','28'],h:['07','08']},
+  {q:['01','03','06','16','25'],h:['01','11']},
+  {q:['02','13','17','26','34'],h:['03','09']}
+];
+
+function analyze(periods) {
+  const data = historyData.slice(-periods);
+  const fCount = {}, bCount = {};
+  for(let i=1;i<=35;i++) fCount[String(i).padStart(2,'0')]=0;
+  for(let i=1;i<=12;i++) bCount[String(i).padStart(2,'0')]=0;
+  data.forEach(d=>{ d.q.forEach(n=>fCount[n]++); d.h.forEach(n=>bCount[n]++); });
+  const fMean = data.length*5/35, bMean = data.length*2/12;
+  const hotF=[],coldF=[],hotB=[],coldB=[];
+  Object.entries(fCount).forEach(([k,v])=>{ if(v>fMean*1.2) hotF.push(k); else if(v<fMean*0.8) coldF.push(k); });
+  Object.entries(bCount).forEach(([k,v])=>{ if(v>bMean*1.2) hotB.push(k); else if(v<bMean*0.8) coldB.push(k); });
+  return {fCount,bCount,hotF,coldF,hotB,coldB,fMean};
+}
+
+function pickFront(n, mode, weights, lucky, stats) {
+  const pool=[];
+  for(let i=1;i<=35;i++){ pool.push(String(i).padStart(2,'0')); }
+  if(mode==='random'){
+    const shuffled=pool.sort(()=>Math.random()-0.5);
+    return shuffled.slice(0,n).sort((a,b)=>Number(a)-Number(b));
+  }
+  const {hotF,coldF,fCount,fMean}=stats;
+  const w=parseFloat(weights);
+  const weighted=[];
+  pool.forEach(num=>{
+    let weight=1;
+    if(hotF.includes(num)) weight=w;
+    else if(coldF.includes(num)) weight=1/w;
+    for(let i=0;i<Math.round(weight*10);i++) weighted.push(num);
+  });
+  const result=[];
+  const used=new Set();
+  if(lucky){ lucky.forEach(l=>{ if(pool.includes(l)&&!used.has(l)){ result.push(l); used.add(l); } }); }
+  while(result.length<n){
+    const r=weighted[Math.floor(Math.random()*weighted.length)];
+    if(!used.has(r)){ used.add(r); result.push(r); }
+  }
+  return result.sort((a,b)=>Number(a)-Number(b));
+}
+
+function pickBack(n, mode, weights, lucky, stats) {
+  const pool=[];
+  for(let i=1;i<=12;i++){ pool.push(String(i).padStart(2,'0')); }
+  if(mode==='random'){
+    const shuffled=pool.sort(()=>Math.random()-0.5);
+    return shuffled.slice(0,n).sort((a,b)=>Number(a)-Number(b));
+  }
+  const {hotB,coldB,bCount,bMean}=stats;
+  const w=parseFloat(weights);
+  const weighted=[];
+  pool.forEach(num=>{
+    let weight=1;
+    if(hotB.includes(num)) weight=w;
+    else if(coldB.includes(num)) weight=1/w;
+    for(let i=0;i<Math.round(weight*10);i++) weighted.push(num);
+  });
+  const result=[];
+  const used=new Set();
+  if(lucky){ lucky.forEach(l=>{ if(pool.includes(l)&&!used.has(l)){ result.push(l); used.add(l); } }); }
+  while(result.length<n){
+    const r=weighted[Math.floor(Math.random()*weighted.length)];
+    if(!used.has(r)){ used.add(r); result.push(r); }
+  }
+  return result.sort((a,b)=>Number(a)-Number(b));
+}
+
+function generate() {
+  const periods=parseInt(document.getElementById('periods').value);
+  const count=parseInt(document.getElementById('count').value);
+  const mode=document.getElementById('mode').value;
+  const hotWeight=document.getElementById('hotWeight').value;
+  const luckyFront=document.getElementById('luckyFront').value.trim().split(/\s+/).filter(Boolean).map(s=>String(parseInt(s)).padStart(2,'0'));
+  const luckyBack=document.getElementById('luckyBack').value.trim().split(/\s+/).filter(Boolean).map(s=>String(parseInt(s)).padStart(2,'0'));
+  const stats=analyze(periods);
+  let html='';
+  for(let i=0;i<count;i++){
+    const front=pickFront(5,mode,hotWeight,luckyFront,stats);
+    const back=pickBack(2,mode,hotWeight,luckyBack,stats);
+    const odd=front.filter(n=>parseInt(n)%2!==0).length;
+    const big=front.filter(n=>parseInt(n)>=18).length;
+    const sum=front.reduce((a,b)=>a+parseInt(b),0);
+    const fHot=front.filter(n=>stats.hotF.includes(n)).length;
+    const fCold=front.filter(n=>stats.coldF.includes(n)).length;
+    html+=`<div class="result-item">
+      <div class="result-header">第 ${i+1} 注</div>
+      <div class="numbers">
+        <span class="front-nums">${front.join(' ')}</span>
+        <span class="back-nums">${back.join(' ')}</span>
+      </div>
+      <div class="stats">奇偶 ${odd}:${5-odd} ｜ 大小 ${big}:${5-big} ｜ 和值 ${sum} ｜ 热${fHot} 冷${fCold}</div>
+    </div>`;
+  }
+  document.getElementById('results').innerHTML=html;
+}
+</script>
+</body>
+</html>
